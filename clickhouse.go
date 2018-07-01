@@ -28,6 +28,9 @@ var (
 	splitInsertRe = regexp.MustCompile(`(?i)\sVALUES\s*\(`)
 )
 
+//If debug is false, don't print all of the logging messages
+var debug = false
+
 type logger func(format string, v ...interface{})
 
 type clickhouse struct {
@@ -54,7 +57,9 @@ func (ch *clickhouse) PrepareContext(ctx context.Context, query string) (driver.
 }
 
 func (ch *clickhouse) prepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	ch.logf("[prepare] %s", query)
+	if debug == true {
+		ch.logf("[prepare] %s", query)
+	}
 	switch {
 	case ch.conn.closed:
 		return nil, driver.ErrBadConn
@@ -103,7 +108,9 @@ type txOptions struct {
 }
 
 func (ch *clickhouse) beginTx(ctx context.Context, opts txOptions) (*clickhouse, error) {
-	ch.logf("[begin] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	if debug == true {
+		ch.logf("[begin] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	}
 	switch {
 	case ch.inTransaction:
 		return nil, sql.ErrTxDone
@@ -119,7 +126,9 @@ func (ch *clickhouse) beginTx(ctx context.Context, opts txOptions) (*clickhouse,
 }
 
 func (ch *clickhouse) Commit() error {
-	ch.logf("[commit] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	if debug == true {
+		ch.logf("[commit] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	}
 	defer func() {
 		if ch.block != nil {
 			ch.block.Reset()
@@ -150,7 +159,9 @@ func (ch *clickhouse) Commit() error {
 }
 
 func (ch *clickhouse) Rollback() error {
-	ch.logf("[rollback] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	if debug == true {
+		ch.logf("[rollback] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	}
 	if !ch.inTransaction {
 		return sql.ErrTxDone
 	}
@@ -243,25 +254,33 @@ func (ch *clickhouse) process() error {
 			if err != nil {
 				return err
 			}
-			ch.logf("[process] <- progress: rows=%d, bytes=%d, total rows=%d",
-				progress.rows,
-				progress.bytes,
-				progress.totalRows,
-			)
+			if debug == true {
+				ch.logf("[process] <- progress: rows=%d, bytes=%d, total rows=%d",
+					progress.rows,
+					progress.bytes,
+					progress.totalRows,
+				)
+			}
 		case protocol.ServerProfileInfo:
 			profileInfo, err := ch.profileInfo()
 			if err != nil {
 				return err
 			}
-			ch.logf("[process] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
+			if debug == true {
+				ch.logf("[process] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
+			}
 		case protocol.ServerData:
 			block, err := ch.readBlock()
 			if err != nil {
 				return err
 			}
-			ch.logf("[process] <- data: packet=%d, columns=%d, rows=%d", packet, block.NumColumns, block.NumRows)
+			if debug == true {
+				ch.logf("[process] <- data: packet=%d, columns=%d, rows=%d", packet, block.NumColumns, block.NumRows)
+			}
 		case protocol.ServerEndOfStream:
-			ch.logf("[process] <- end of stream")
+			if debug == true {
+				ch.logf("[process] <- end of stream")
+			}
 			return nil
 		default:
 			ch.conn.Close()
@@ -274,7 +293,9 @@ func (ch *clickhouse) process() error {
 }
 
 func (ch *clickhouse) cancel() error {
-	ch.logf("[cancel request]")
+	if debug == true {
+		ch.logf("[cancel request]")
+	}
 	if err := ch.encoder.Uvarint(protocol.ClientCancel); err != nil {
 		return err
 	}
@@ -289,9 +310,13 @@ func (ch *clickhouse) watchCancel(ctx context.Context) func() {
 			case <-done:
 				ch.cancel()
 				finished <- struct{}{}
-				ch.logf("[cancel] <- done")
+				if debug == true {
+					ch.logf("[cancel] <- done")
+				}
 			case <-finished:
-				ch.logf("[cancel] <- finished")
+				if debug == true {
+					ch.logf("[cancel] <- finished")
+				}
 			}
 		}()
 		return func() {
