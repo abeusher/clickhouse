@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -27,8 +28,9 @@ const (
 )
 
 var (
-	unixtime    int64
-	logOutput   io.Writer = os.Stdout
+	unixtime int64
+	//logOutput   io.Writer = os.Stdout
+	logOutput   io.Writer = ioutil.Discard
 	hostname, _           = os.Hostname()
 )
 
@@ -55,7 +57,8 @@ func (d *bootstrap) Open(dsn string) (driver.Conn, error) {
 }
 
 func SetLogOutput(output io.Writer) {
-	logOutput = output
+	//logOutput = output
+	logOutput = ioutil.Discard
 }
 
 func Open(dsn string) (driver.Conn, error) {
@@ -135,7 +138,7 @@ func open(dsn string) (*clickhouse, error) {
 		}
 		logger = log.New(logOutput, "[clickhouse]", 0)
 	)
-	if debug, err := strconv.ParseBool(url.Query().Get("debug")); err == nil && debug {
+	if debug2, err := strconv.ParseBool(url.Query().Get("debug")); err == nil && debug2 {
 		ch.logf = logger.Printf
 	}
 	ch.logf("host(s)=%s, database=%s, username=%s",
