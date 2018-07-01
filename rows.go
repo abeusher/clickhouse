@@ -99,16 +99,20 @@ func (rows *rows) receiveData() error {
 			if progress, err = rows.ch.progress(); err != nil {
 				return rows.setError(err)
 			}
-			rows.ch.logf("[rows] <- progress: rows=%d, bytes=%d, total rows=%d",
-				progress.rows,
-				progress.bytes,
-				progress.totalRows,
-			)
+			if debug == true {
+				rows.ch.logf("[rows] <- progress: rows=%d, bytes=%d, total rows=%d",
+					progress.rows,
+					progress.bytes,
+					progress.totalRows,
+				)
+			}
 		case protocol.ServerProfileInfo:
 			if profileInfo, err = rows.ch.profileInfo(); err != nil {
 				return rows.setError(err)
 			}
-			rows.ch.logf("[rows] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
+			if debug == true {
+				rows.ch.logf("[rows] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
+			}
 		case protocol.ServerData, protocol.ServerTotals, protocol.ServerExtremes:
 			var (
 				block *data.Block
@@ -117,7 +121,9 @@ func (rows *rows) receiveData() error {
 			if block, err = rows.ch.readBlock(); err != nil {
 				return rows.setError(err)
 			}
-			rows.ch.logf("[rows] <- data: packet=%d, columns=%d, rows=%d, elapsed=%s", packet, block.NumColumns, block.NumRows, time.Since(begin))
+			if debug == true {
+				rows.ch.logf("[rows] <- data: packet=%d, columns=%d, rows=%d, elapsed=%s", packet, block.NumColumns, block.NumRows, time.Since(begin))
+			}
 			if block.NumRows == 0 {
 				continue
 			}
@@ -130,18 +136,24 @@ func (rows *rows) receiveData() error {
 				rows.extremes = block
 			}
 		case protocol.ServerEndOfStream:
-			rows.ch.logf("[rows] <- end of stream")
+			if debug == true {
+				rows.ch.logf("[rows] <- end of stream")
+			}
 			return nil
 		default:
 			rows.ch.conn.Close()
-			rows.ch.logf("[rows] unexpected packet [%d]", packet)
+			if debug == true {
+				rows.ch.logf("[rows] unexpected packet [%d]", packet)
+			}
 			return rows.setError(fmt.Errorf("[rows] unexpected packet [%d] from server", packet))
 		}
 	}
 }
 
 func (rows *rows) Close() error {
-	rows.ch.logf("[rows] close")
+	if debug == true {
+		rows.ch.logf("[rows] close")
+	}
 	rows.columns = nil
 	for range rows.stream {
 	}
